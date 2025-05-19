@@ -1,0 +1,145 @@
+setwd("~/Desktop/zikkenmonday")
+install.packages("osrm")
+install.packages("readr")
+install.packages("googleway")
+install.packages("geosphere") 
+library(osrm)
+library(dplyr)
+library(readr)
+library(googleway)
+library(geosphere)
+
+locations <- read_csv("~/Desktop/zikkenmonday/LocationData.csv")
+
+locations$cluster_category <- cut(locations$cluster,
+                         breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10),
+                         labels = c("c1", "c2", "c3","c4", "c5", "c6","c7", "c8", "c9","c10"))
+
+
+
+
+# 緯度・経度の名前を変更
+locations <- locations %>%
+  rename(
+    lat = latitude,
+    lon = longitude
+  )
+
+
+d1 <- locations %>% filter(cluster_category == "c1")
+d2 <- locations %>% filter(cluster_category == "c2")
+d3 <- locations %>% filter(cluster_category == "c3")
+d4 <- locations %>% filter(cluster_category == "c4")
+d5 <- locations %>% filter(cluster_category == "c5")
+d6 <- locations %>% filter(cluster_category == "c6")
+d7 <- locations %>% filter(cluster_category == "c7")
+d8 <- locations %>% filter(cluster_category == "c8")
+d9 <- locations %>% filter(cluster_category == "c9")
+d10 <- locations %>% filter(cluster_category == "c10")
+
+
+
+# クラスタ c1 を抽出して id を付ける
+d1 <- locations %>%
+  filter(cluster_category == "c1") %>%
+  mutate(id = as.character(row_number()))
+
+
+from <- d1[nrow(d1), ] %>%
+  select(id, lon, lat) %>%
+  as.data.frame()
+rownames(from) <- from$id
+from$id <- NULL  # id列は不要になる
+
+to <- d1[1:(nrow(d1) - 1), ] %>%
+  select(id, lon, lat) %>%
+  as.data.frame()
+rownames(to) <- to$id
+to$id <- NULL
+
+
+
+
+
+# デバッグ: データの中身を確認
+head(from)
+head(to)
+print(route)
+
+# 明示的に OSRM サーバーを指定
+options(osrm.server = "https://router.project-osrm.org/")
+options(osrm.profile = "car")  # プロファイル（歩行なら "foot", 自転車なら "bike" も可）
+
+# 実距離を取得（km単位）
+route1 <- osrmTable(src = from, dst = to, measure = "distance")　
+
+#dist_matrix <- route$
+
+# 距離を表示
+
+
+print(route$distances)
+
+# 例：デスクトップに保存
+write.csv(route$distances, file = "~/Desktop/zikkenmonday/route_distances1.csv", row.names = TRUE)
+
+
+data <- read.csv("route_distances1.csv", header = TRUE, row.names = 1)
+
+# 行と列を転置
+transposed_data <- t(data)
+rownames(transposed_data) <- gsub("^X", "", rownames(transposed_data))
+
+# 転置したデータをCSVに保存
+write.csv(transposed_data, "transposed_output1.csv")
+
+
+
+
+
+# 例：1対多の直線距離（from: 1点、to: 複数点）
+from_coords <- as.numeric(from[1, c("lon", "lat")])  # 出発点の緯度経度
+to_coords <- to[, c("lon", "lat")]  # 到着点の座標行列（複数行）
+
+# Haversine距離（m単位）
+distances_m <- distHaversine(p1 = matrix(from_coords, nrow = 1), p2 = as.matrix(to_coords))
+
+# 距離をid付きで保存
+df_distance <- data.frame(
+  to_id = rownames(to),
+  distance_m = distances_m
+)
+
+# 保存
+write.csv(df_distance, file = "~/Desktop/zikkenmonday/straight_distances1.csv", row.names = FALSE)
+
+
+# CSVファイルを読み込む
+data <- read.csv("~/Desktop/zikkenmonday/c1.csv")
+
+
+# 最初の数行を確認
+head(data)
+
+# 構造を確認（変数名・型など）
+str(data)
+
+# 要約統計量
+summary(data)
+# 単回帰モデルの作成
+model <- lm(real_distance ~ straight_distance, data = data)
+
+# モデルの要約
+summary(model)
+
+# 散布図と回帰直線の描画
+plot(data$straight_distance, data$real_distance,
+     main = "単回帰分析: real_distance vs straight_distance",
+     xlab = "straight_distance",
+     ylab = "real_distance",
+     pch = 16, col = "darkgray")
+
+# 回帰直線を追加
+abline(model, col = "blue", lwd = 2)
+
+
