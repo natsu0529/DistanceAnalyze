@@ -67,10 +67,11 @@ for (i in 2:10) {
 
 
 
+setwd("~/Desktop/zikkenmonday")
 
-# CSVファイルを読み込む
-i=2
-data <- read.csv(paste0("~/Desktop/zikkenmonday/c", i, ".csv"))
+
+# CSVファイルを読み込む(cの後の値を変更する)
+data <- read.csv("~/Desktop/zikkenmonday/c2.csv")
 
 
 # 最初の数行を確認
@@ -82,7 +83,7 @@ str(data)
 # 要約統計量
 summary(data)
 # 単回帰モデルの作成
-model <- lm(real_distance ~ straight_distance, data = data)
+model <- lm(real_distance_m ~ straight_distance_m, data = data)
 
 # モデルの要約
 summary(model)
@@ -96,12 +97,3 @@ plot(data$straight_distance, data$real_distance,
 
 # 回帰直線を追加
 abline(model, col = "blue", lwd = 2)
-
-
-
-
-
-  # 保存ファイル名
-  output_file <- paste0("~/Desktop/zikkenmonday/", cluster_label, ".csv")
-  write.csv(df_output, file = output_file, row.names = FALSE)
-}
