@@ -63,7 +63,44 @@ for (i in 2:10) {
     real_distance_m = real_distances,
     straight_distance_m = straight_distances
   )
-  
+
+
+
+
+
+# CSVファイルを読み込む
+i=2
+data <- read.csv(paste0("~/Desktop/zikkenmonday/c", i, ".csv"))
+
+
+# 最初の数行を確認
+head(data)
+
+# 構造を確認（変数名・型など）
+str(data)
+
+# 要約統計量
+summary(data)
+# 単回帰モデルの作成
+model <- lm(real_distance ~ straight_distance, data = data)
+
+# モデルの要約
+summary(model)
+
+# 散布図と回帰直線の描画
+plot(data$straight_distance, data$real_distance,
+     main = "単回帰分析: real_distance vs straight_distance",
+     xlab = "straight_distance",
+     ylab = "real_distance",
+     pch = 16, col = "darkgray")
+
+# 回帰直線を追加
+abline(model, col = "blue", lwd = 2)
+
+
+
+
+
   # 保存ファイル名
   output_file <- paste0("~/Desktop/zikkenmonday/", cluster_label, ".csv")
   write.csv(df_output, file = output_file, row.names = FALSE)
