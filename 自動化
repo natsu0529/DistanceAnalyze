@@ -1,0 +1,70 @@
+library(osrm)
+library(dplyr)
+library(readr)
+library(googleway)
+library(geosphere)
+
+# データ読み込み
+locations <- read_csv("~/Desktop/zikkenmonday/LocationData.csv")
+
+# クラスタカテゴリの付与
+locations$cluster_category <- cut(locations$cluster,
+                                  breaks = 0:10,
+                                  labels = paste0("c", 1:10))
+
+# 緯度経度の列名変更
+locations <- locations %>%
+  rename(lat = latitude, lon = longitude)
+
+# OSRM 設定
+options(osrm.server = "https://router.project-osrm.org/")
+options(osrm.profile = "car")
+
+# クラスタ c2 から c10 まで繰り返す
+for (i in 2:10) {
+  cluster_label <- paste0("c", i)
+  cat("Processing cluster:", cluster_label, "\n")
+  
+  # 該当クラスタのデータ抽出と ID 付与
+  d <- locations %>%
+    filter(cluster_category == cluster_label) %>%
+    mutate(id = as.character(row_number()))
+  
+  if (nrow(d) < 2) {
+    cat("Not enough data points in", cluster_label, "\n")
+    next
+  }
+  
+  # from: 最後の行、to: その他の行
+  from <- d[nrow(d), ] %>%
+    select(id, lon, lat) %>%
+    as.data.frame()
+  rownames(from) <- from$id
+  from$id <- NULL
+  
+  to <- d[1:(nrow(d) - 1), ] %>%
+    select(id, lon, lat) %>%
+    as.data.frame()
+  rownames(to) <- to$id
+  to$id <- NULL
+  
+  # 実距離取得（km）
+  route <- osrmTable(src = from, dst = to, measure = "distance")
+  real_distances <- as.numeric(route$distances[1, ])
+  
+  # 直線距離計算（m）
+  from_coords <- as.numeric(from[1, c("lon", "lat")])
+  to_coords <- to[, c("lon", "lat")]
+  straight_distances <- distHaversine(p1 = matrix(from_coords, nrow = 1), p2 = as.matrix(to_coords))
+  
+  # データ結合・保存
+  df_output <- data.frame(
+    to_id = rownames(to),
+    real_distance_m = real_distances,
+    straight_distance_m = straight_distances
+  )
+  
+  # 保存ファイル名
+  output_file <- paste0("~/Desktop/zikkenmonday/", cluster_label, ".csv")
+  write.csv(df_output, file = output_file, row.names = FALSE)
+}
